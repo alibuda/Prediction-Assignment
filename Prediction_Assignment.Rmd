@@ -87,7 +87,7 @@ testing <- data.frame(problem_id = tapply(raw_testing$problem_id,raw_testing$num
 ```
 
 ## Fit Model
-Because of the characteristic noise in the sensor data, we used a Random Forest approach [28]. This algorithm is characterized by a subset of features, selected in a random and independent manner with the same distribution for each of the trees in the forest. To improve recognition performance we used an ensemble of classiers using the "Bagging" method. We used 10 random forests and each forest was implemented with 10 trees. The classier was tested with 10-fold cross-validation.
+Because of the characteristic noise in the sensor data, we used a Random Forest approach.This algorithm is characterized by a subset of features, selected in a random and independent manner with the same distribution for each of the trees in the forest. To improve recognition performance we used an ensemble of classiers using the "Bagging" method. We used 10 random forests and each forest was implemented with 10 trees. The classier was tested with 10-fold cross-validation.
 ```{r,cache=TRUE}
 library(caret)
 set.seed(1122)
@@ -114,7 +114,7 @@ for(i in 1:10){
     accuracy <- c(accuracy,acc)
     }
 plot(accuracy,type = "o")
-print(paste("So the best model is No.",which.max(accuracy)," with accuracy ",max(accuracy),sep = ''))
+print(paste("So, the best model is No.",which.max(accuracy),", with accuracy ",max(accuracy),sep = ''))
 ```
 
 ## Prediction
