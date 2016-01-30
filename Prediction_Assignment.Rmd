@@ -1,0 +1,127 @@
+---
+title: "Prediction Assignment"
+author: "Shishuhuan"
+date: "Saturday, January 30, 2016"
+output: html_document
+---
+## Introduction
+People regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, our goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways.
+
+In this work we first define quality of execution and investigate three aspects that pertain to qualitative activity recognition: the problem of specifying correct execution, the automatic and robust detection of execution mistakes, and how to provide feedback on the quality of execution to the user. We tried out an on-body sensing approach (dataset here), but also an "ambient sensing approach" (by using Microsoft Kinect - dataset still unavailable)
+
+Six young health participants were asked to perform one set of 10 repetitions of the Unilateral Dumbbell Biceps Curl in five different fashions: exactly according to the specification (Class A), throwing the elbows to the front (Class B), lifting the dumbbell only halfway (Class C), lowering the dumbbell only halfway (Class D) and throwing the hips to the front (Class E).
+
+## Load data
+```{r}
+raw_training <- read.csv("~/pml-training.csv")
+raw_testing <- read.csv("~/pml-testing.csv")
+```
+
+## Feature extraction and selection
+In order to identify the most relevant features we used the feature selection algorithm based on correlation proposed by Hall. The algorithm was congured to use a Best First" strategy based on backtracking. 17 features were selected: in the belt, were selected the mean of the roll, maximum and range of the accelerometer vector. In the arm, the maximum and minimum of the magnetometer were selected. In the dumbbell, the selected features were the maximum of the acceleration, maximum and minimum of the magnetometer, while in the glove, the sum of the pitch and the maximum and minimum of the gyro were selected.
+
+## Data Process
+```{r}
+# For training data
+training <- data.frame(class = tapply(raw_training$classe,raw_training$num_window,function(x) unique(as.character(x))),
+                       avg_roll_belt = tapply(raw_training$roll_belt,raw_training$num_window,mean,na.rm=T),
+                       max_accel_belt_x = tapply(raw_training$accel_belt_x,raw_training$num_window,max,na.rm=T),
+                       max_accel_belt_y = tapply(raw_training$accel_belt_y,raw_training$num_window,max,na.rm=T),
+                       max_accel_belt_z = tapply(raw_training$accel_belt_z,raw_training$num_window,max,na.rm=T),
+                       range_accel_belt_x = tapply(raw_training$accel_belt_x,raw_training$num_window,function(x) diff(range(x,na.rm = T))),
+                       range_accel_belt_y = tapply(raw_training$accel_belt_y,raw_training$num_window,function(x) diff(range(x,na.rm = T))),
+                       range_accel_belt_z = tapply(raw_training$accel_belt_z,raw_training$num_window,function(x) diff(range(x,na.rm = T))),
+                       max_magnet_arm_x = tapply(raw_training$magnet_arm_x,raw_training$num_window,max,na.rm=T),
+                       max_magnet_arm_y = tapply(raw_training$magnet_arm_y,raw_training$num_window,max,na.rm=T),
+                       max_magnet_arm_z = tapply(raw_training$magnet_arm_z,raw_training$num_window,max,na.rm=T),
+                       min_magnet_arm_x = tapply(raw_training$magnet_arm_x,raw_training$num_window,min,na.rm=T),
+                       min_magnet_arm_y = tapply(raw_training$magnet_arm_y,raw_training$num_window,min,na.rm=T),
+                       min_magnet_arm_z = tapply(raw_training$magnet_arm_z,raw_training$num_window,min,na.rm=T),
+                       max_accel_dumbbell_x = tapply(raw_training$accel_dumbbell_x,raw_training$num_window,max,na.rm=T),
+                       max_accel_dumbbell_y = tapply(raw_training$accel_dumbbell_y,raw_training$num_window,max,na.rm=T),
+                       max_accel_dumbbell_z = tapply(raw_training$accel_dumbbell_z,raw_training$num_window,max,na.rm=T),
+                       max_magnet_dumbbell_x = tapply(raw_training$magnet_dumbbell_x,raw_training$num_window,max,na.rm=T),
+                       max_magnet_dumbbell_y = tapply(raw_training$magnet_dumbbell_y,raw_training$num_window,max,na.rm=T),
+                       max_magnet_dumbbell_z = tapply(raw_training$magnet_dumbbell_z,raw_training$num_window,max,na.rm=T),
+                       min_magnet_dumbbell_x = tapply(raw_training$magnet_dumbbell_x,raw_training$num_window,min,na.rm=T),
+                       min_magnet_dumbbell_y = tapply(raw_training$magnet_dumbbell_y,raw_training$num_window,min,na.rm=T),
+                       min_magnet_dumbbell_z = tapply(raw_training$magnet_dumbbell_z,raw_training$num_window,min,na.rm=T),
+                       sum_pitch_forearm = tapply(raw_training$pitch_forearm,raw_training$num_window,sum,na.rm=T),
+                       max_gyros_forearm_x = tapply(raw_training$gyros_forearm_x,raw_training$num_window,max,na.rm=T),
+                       max_gyros_forearm_y = tapply(raw_training$gyros_forearm_y,raw_training$num_window,max,na.rm=T),
+                       max_gyros_forearm_z = tapply(raw_training$gyros_forearm_z,raw_training$num_window,max,na.rm=T),
+                       min_gyros_forearm_x = tapply(raw_training$gyros_forearm_x,raw_training$num_window,min,na.rm=T),
+                       min_gyros_forearm_y = tapply(raw_training$gyros_forearm_y,raw_training$num_window,min,na.rm=T),
+                       min_gyros_forearm_z = tapply(raw_training$gyros_forearm_z,raw_training$num_window,min,na.rm=T))
+# For testing data 
+testing <- data.frame(problem_id = tapply(raw_testing$problem_id,raw_testing$num_window,function(x) unique(as.character(x))),
+                      avg_roll_belt = tapply(raw_testing$roll_belt,raw_testing$num_window,mean,na.rm=T),
+                      max_accel_belt_x = tapply(raw_testing$accel_belt_x,raw_testing$num_window,max,na.rm=T),
+                      max_accel_belt_y = tapply(raw_testing$accel_belt_y,raw_testing$num_window,max,na.rm=T),
+                      max_accel_belt_z = tapply(raw_testing$accel_belt_z,raw_testing$num_window,max,na.rm=T),
+                      range_accel_belt_x = tapply(raw_testing$accel_belt_x,raw_testing$num_window,function(x) diff(range(x,na.rm = T))),
+                      range_accel_belt_y = tapply(raw_testing$accel_belt_y,raw_testing$num_window,function(x) diff(range(x,na.rm = T))),
+                      range_accel_belt_z = tapply(raw_testing$accel_belt_z,raw_testing$num_window,function(x) diff(range(x,na.rm = T))),
+                      max_magnet_arm_x = tapply(raw_testing$magnet_arm_x,raw_testing$num_window,max,na.rm=T),
+                      max_magnet_arm_y = tapply(raw_testing$magnet_arm_y,raw_testing$num_window,max,na.rm=T),
+                      max_magnet_arm_z = tapply(raw_testing$magnet_arm_z,raw_testing$num_window,max,na.rm=T),
+                      min_magnet_arm_x = tapply(raw_testing$magnet_arm_x,raw_testing$num_window,min,na.rm=T),
+                      min_magnet_arm_y = tapply(raw_testing$magnet_arm_y,raw_testing$num_window,min,na.rm=T),
+                      min_magnet_arm_z = tapply(raw_testing$magnet_arm_z,raw_testing$num_window,min,na.rm=T),
+                      max_accel_dumbbell_x = tapply(raw_testing$accel_dumbbell_x,raw_testing$num_window,max,na.rm=T),
+                      max_accel_dumbbell_y = tapply(raw_testing$accel_dumbbell_y,raw_testing$num_window,max,na.rm=T),
+                      max_accel_dumbbell_z = tapply(raw_testing$accel_dumbbell_z,raw_testing$num_window,max,na.rm=T),
+                      max_magnet_dumbbell_x = tapply(raw_testing$magnet_dumbbell_x,raw_testing$num_window,max,na.rm=T),
+                      max_magnet_dumbbell_y = tapply(raw_testing$magnet_dumbbell_y,raw_testing$num_window,max,na.rm=T),
+                      max_magnet_dumbbell_z = tapply(raw_testing$magnet_dumbbell_z,raw_testing$num_window,max,na.rm=T),
+                      min_magnet_dumbbell_x = tapply(raw_testing$magnet_dumbbell_x,raw_testing$num_window,min,na.rm=T),
+                      min_magnet_dumbbell_y = tapply(raw_testing$magnet_dumbbell_y,raw_testing$num_window,min,na.rm=T),
+                      min_magnet_dumbbell_z = tapply(raw_testing$magnet_dumbbell_z,raw_testing$num_window,min,na.rm=T),
+                      sum_pitch_forearm = tapply(raw_testing$pitch_forearm,raw_testing$num_window,sum,na.rm=T),
+                      max_gyros_forearm_x = tapply(raw_testing$gyros_forearm_x,raw_testing$num_window,max,na.rm=T),
+                      max_gyros_forearm_y = tapply(raw_testing$gyros_forearm_y,raw_testing$num_window,max,na.rm=T),
+                      max_gyros_forearm_z = tapply(raw_testing$gyros_forearm_z,raw_testing$num_window,max,na.rm=T),
+                      min_gyros_forearm_x = tapply(raw_testing$gyros_forearm_x,raw_testing$num_window,min,na.rm=T),
+                      min_gyros_forearm_y = tapply(raw_testing$gyros_forearm_y,raw_testing$num_window,min,na.rm=T),
+                      min_gyros_forearm_z = tapply(raw_testing$gyros_forearm_z,raw_testing$num_window,min,na.rm=T))
+```
+
+## Fit Model
+Because of the characteristic noise in the sensor data, we used a Random Forest approach [28]. This algorithm is characterized by a subset of features, selected in a random and independent manner with the same distribution for each of the trees in the forest. To improve recognition performance we used an ensemble of classiers using the "Bagging" method. We used 10 random forests and each forest was implemented with 10 trees. The classier was tested with 10-fold cross-validation.
+```{r,cache=TRUE}
+library(caret)
+set.seed(1122)
+cv_index <- createFolds(training$class)
+fit_list <- list()
+for(i in 1:10){
+    fit <- train(class~.,data = training[-cv_index[[i]],],method = "rf")
+    fit_list[[i]] <- fit
+    }
+save(fit_list,file = "~/fit_list.RData")
+```
+
+## Select Model
+```{r}
+# load(file = "~/fit_list.RData")
+accuracy <- c()
+for(i in 1:10){
+#     i <- 2
+    temp_data <- training[cv_index[[i]],]
+    temp_data <- na.omit(temp_data)
+    pred <- predict(fit_list[[i]],newdata = temp_data)    
+    temp <- confusionMatrix(pred,temp_data$class)
+    acc <- temp$overall[1]
+    accuracy <- c(accuracy,acc)
+    }
+plot(accuracy,type = "o")
+print(paste("So the best model is No.",which.max(accuracy)," with accuracy ",max(accuracy),sep = ''))
+```
+
+## Prediction
+```{r}
+fit <- fit_list[[which.max(accuracy)]]
+testing <- testing[order(as.numeric(testing$problem_id)),]
+pred <- predict(fit,newdata = testing)
+names(pred) <- testing$problem_id
+print(pred)
+```
